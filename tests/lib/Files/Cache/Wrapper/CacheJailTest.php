@@ -32,6 +32,7 @@ class CacheJailTest extends CacheTest {
 	protected function setUp(): void {
 		parent::setUp();
 		$this->storage->mkdir('foo');
+		$this->storage->getScanner()->scan('');
 		$this->sourceCache = $this->cache;
 		$this->cache = new \OC\Files\Cache\Wrapper\CacheJail($this->sourceCache, 'foo');
 	}
@@ -49,6 +50,11 @@ class CacheJailTest extends CacheTest {
 		$result = $this->cache->search('%foobar%');
 		$this->assertCount(1, $result);
 		$this->assertEquals('foobar', $result[0]['path']);
+
+		$result = $this->cache->search('%foo%');
+		$this->assertCount(2, $result);
+		$this->assertEquals('', $result[0]['path']);
+		$this->assertEquals('foobar', $result[1]['path']);
 	}
 
 	public function testSearchMimeOutsideJail() {
@@ -76,11 +82,15 @@ class CacheJailTest extends CacheTest {
 
 		$user = new User('foo', null, $this->createMock(EventDispatcherInterface::class));
 		$query = new SearchQuery(new SearchComparison(ISearchComparison::COMPARE_EQUAL, 'name', 'foobar'), 10, 0, [], $user);
-		$this->assertCount(2, $this->sourceCache->searchQuery($query));
+		$result = $this->cache->searchQuery($query);
 
-		$result = $this->cache->search('%foobar%');
 		$this->assertCount(1, $result);
 		$this->assertEquals('foobar', $result[0]['path']);
+
+		$query = new SearchQuery(new SearchComparison(ISearchComparison::COMPARE_EQUAL, 'name', 'foo'), 10, 0, [], $user);
+		$result = $this->cache->searchQuery($query);
+		$this->assertCount(1, $result);
+		$this->assertEquals('', $result[0]['path']);
 	}
 
 	public function testClearKeepEntriesOutsideJail() {
